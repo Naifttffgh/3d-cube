@@ -3,14 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مكعب روبيك 3D</title>
+    <title>مكعب روبيك برو 3D</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div id="controls">
-        <button id="btnX">تدوير X</button>
-        <button id="btnY">تدوير Y</button>
+        <div class="control-group">
+            <div class="group-label">عرض</div>
+            <button id="btnX">تدوير الكاميرا X</button>
+            <button id="btnY">تدوير الكاميرا Y</button>
+        </div>
+        
+        <div class="control-group">
+            <div class="group-label">تحريك الطبقات</div>
+            <button id="btnU">لف الطبقة العليا (U)</button>
+            <button id="btnL">لف الطبقة اليسرى (L)</button>
+        </div>
+
         <button id="btnReset">إعادة ضبط</button>
     </div>
 
@@ -21,8 +31,6 @@
             }
         }
     </script>
-
     <script type="module" src="script.js"></script>
 </body>
 </html>
-
