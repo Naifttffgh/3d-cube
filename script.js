@@ -1,109 +1,90 @@
-// script.js
 import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// --- الإعدادات الأساسية ---
+// --- إعداد المشهد ---
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// --- تعريف الألوان الحقيقية لمكعب روبيك ---
-const colors = {
-    green:  0x009b48, // الأمامي
-    blue:   0x0046ad, // الخلفي
-    white:  0xffffff, // العلوي
-    yellow: 0xffd500, // السفلي
-    red:    0xb71234, // الأيسر
-    orange: 0xff5800, // الأيمن
-    inside: 0x000000  // الأوجه الداخلية (سوداء)
-};
+// --- إضافة التحكم باللمس والماوس (OrbitControls) ---
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; // جعل الحركة ناعمة
 
-// إنشاء المواد لكل وجه (Order: R, L, U, D, F, B)
+// --- تعريف الألوان الرسمية (روبيك) ---
 const materials = [
-    new THREE.MeshBasicMaterial({ color: colors.orange }), // Right
-    new THREE.MeshBasicMaterial({ color: colors.red }),    // Left
-    new THREE.MeshBasicMaterial({ color: colors.white }),  // Up
-    new THREE.MeshBasicMaterial({ color: colors.yellow }), // Down
-    new THREE.MeshBasicMaterial({ color: colors.green }),  // Front
-    new THREE.MeshBasicMaterial({ color: colors.blue })    // Back
+    new THREE.MeshBasicMaterial({ color: 0xff5800 }), // Right (برتقالي)
+    new THREE.MeshBasicMaterial({ color: 0xb71234 }), // Left (أحمر)
+    new THREE.MeshBasicMaterial({ color: 0xffffff }), // Up (أبيض)
+    new THREE.MeshBasicMaterial({ color: 0xffd500 }), // Down (أصفر)
+    new THREE.MeshBasicMaterial({ color: 0x009b48 }), // Front (أخضر)
+    new THREE.MeshBasicMaterial({ color: 0x0046ad })  // Back (أزرق)
 ];
 
-// --- إنشاء مكعب روبيك الملون ---
 const rubiksCube = new THREE.Group();
-const smallCubes = []; // مصفوفة لتخزين المكعبات الصغيرة للوصول إليها لاحقاً
 scene.add(rubiksCube);
+const allSmallCubes = [];
 
-function createSmallCube(x, y, z) {
-    const geometry = new THREE.BoxGeometry(0.97, 0.97, 0.97);
-    const cube = new THREE.Mesh(geometry, materials);
-    cube.position.set(x, y, z);
-
-    // إضافة حدود سوداء دقيقة
-    const edges = new THREE.EdgesGeometry(geometry);
-    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 }));
-    cube.add(line);
-    
-    // إضافة بيانات إضافية للمكعب الصغير لتعريف موقعه الأصلي
-    cube.userData = { originalPosition: new THREE.Vector3(x, y, z) };
-    
-    return cube;
-}
-
-// بناء الهيكل 3x3x3
+// إنشاء المكعبات الصغيرة
 for (let x = -1; x <= 1; x++) {
     for (let y = -1; y <= 1; y++) {
         for (let z = -1; z <= 1; z++) {
-            const sc = createSmallCube(x, y, z);
-            rubiksCube.add(sc);
-            smallCubes.push(sc); // تخزين المرجع
+            const geometry = new THREE.BoxGeometry(0.95, 0.95, 0.95);
+            const cube = new THREE.Mesh(geometry, materials);
+            cube.position.set(x, y, z);
+
+            // إضافة حواف سوداء لإظهار التقسيم
+            const edges = new THREE.EdgesGeometry(geometry);
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000 }));
+            cube.add(line);
+
+            rubiksCube.add(cube);
+            allSmallCubes.push(cube);
         }
     }
 }
 
-// وضع الكاميرا في زاوية رؤية جيدة
 camera.position.set(4, 4, 6);
-camera.lookAt(0, 0, 0);
+controls.update();
 
-// --- وظيفة تدوير الطبقات (The Core Magic) ---
-// axis: 'x', 'y', or 'z'
-// layerIndex: -1, 0, or 1 (e.g., y=1 is Top layer)
-function rotateLayer(axis, layerIndex) {
-    // 1. إنشاء مجموعة مؤقتة للتدوير
+// --- وظيفة تدوير طبقة محددة ---
+function rotateLayer(axis, index) {
     const tempGroup = new THREE.Group();
     scene.add(tempGroup);
 
-    // 2. البحث عن المكعبات الصغيرة التي تنتمي لهذه الطبقة
-    const cubesToRotate = [];
-    const remainingCubes = [];
-
-    // نحن بحاجة للتحقق من الموقف العالمي (World Position) الحالي للمكعبات
     const worldPos = new THREE.Vector3();
-
-    smallCubes.forEach(cube => {
-        cube.getWorldPosition(worldPos);
-        
-        // تقريب القيمة لتجنب أخطاء الفاصلة العائمة
-        const currentPosOnAxis = Math.round(worldPos[axis]);
-        
-        if (currentPosOnAxis === layerIndex) {
-            cubesToRotate.push(cube);
-        }
+    const toRotate = allSmallCubes.filter(c => {
+        c.getWorldPosition(worldPos);
+        return Math.round(worldPos[axis]) === index;
     });
 
-    // 3. نقل المكعبات المختارة إلى المجموعة المؤقتة
-    cubesToRotate.forEach(cube => {
-        // الحفاظ على الموقف العالمي للمكعب عند نقله
-        tempGroup.attach(cube);
-    });
-
-    // 4. تدوير المجموعة المؤقتة بمقدار 90 درجة (Math.PI / 2)
-    // ملاحظة: هذا دوران فوري. لعمل حركة سلسة، ستحتاج إلى أنيميشن معقد.
+    toRotate.forEach(c => tempGroup.attach(c));
     tempGroup.rotation[axis] += Math.PI / 2;
-    
-    // تحديث المصفوفة العالمية للمجموعة لضمان دقة العمليات التالية
     tempGroup.updateMatrixWorld();
+    toRotate.forEach(c => rubiksCube.attach(c));
+    scene.remove(tempGroup);
+}
 
+// --- ربط الأزرار ---
+document.getElementById('btnU').onclick = () => rotateLayer('y', 1);
+document.getElementById('btnL').onclick = () => rotateLayer('x', -1);
+document.getElementById('btnReset').onclick = () => location.reload();
+
+// --- حلقة التحريك ---
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update(); // ضروري لعمل الـ Damping (النعومة)
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
     // 5. إعادة المكعبات إلى المجموعة الرئيسية
     cubesToRotate.forEach(cube => {
         rubiksCube.attach(cube);
