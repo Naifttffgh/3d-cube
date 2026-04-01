@@ -3,32 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مكعب روبيك الكامل - اللاعب والمكعب والتحكم</title>
+    <title>Rubik's 3x3 Full Controls - Pro Edition</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background: #050505; font-family: 'Segoe UI', sans-serif; }
         #ui {
-            position: absolute; top: 15px; left: 15px; z-index: 100;
-            background: rgba(0,0,0,0.8); padding: 15px; border-radius: 12px;
-            display: flex; flex-direction: column; gap: 8px; border: 1px solid #444;
+            position: absolute; top: 10px; left: 10px; z-index: 100;
+            background: rgba(0, 0, 0, 0.85); padding: 15px; border-radius: 12px;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border: 1px solid #444;
+            max-width: 260px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
+        .header { grid-column: span 2; color: #00ffcc; font-weight: bold; text-align: center; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
         button {
-            padding: 10px 15px; background: #222; color: #00ff00; border: 1px solid #555;
+            padding: 10px; background: #222; color: white; border: 1px solid #555;
             cursor: pointer; border-radius: 6px; font-weight: bold; transition: 0.2s;
-            text-transform: uppercase;
         }
-        button:hover { background: #444; border-color: #00ff00; box-shadow: 0 0 10px rgba(0,255,0,0.3); }
-        .reset { color: #ff4444; border-color: #600; margin-top: 5px; }
-        .hint { color: #888; font-size: 11px; text-align: center; margin-top: 5px; }
+        button:hover { background: #00ffcc; color: #000; transform: scale(1.05); }
+        .reset { grid-column: span 2; color: #ff4444; border-color: #600; margin-top: 5px; }
+        .hint { grid-column: span 2; color: #888; font-size: 10px; text-align: center; margin-top: 5px; }
     </style>
 </head>
 <body>
 
     <div id="ui">
-        <button onclick="window.rotateLayer('y', 1)">Upper Layer (U)</button>
-        <button onclick="window.rotateLayer('x', -1)">Left Layer (L)</button>
-        <button onclick="window.rotateLayer('z', 1)">Front Layer (F)</button>
+        <div class="header">Standard Cube 3x3</div>
+        
+        <button onclick="window.rotateLayer('y', 1)">Up (U)</button>
+        <button onclick="window.rotateLayer('y', -1)">Down (D)</button>
+        
+        <button onclick="window.rotateLayer('x', -1)">Left (L)</button>
+        <button onclick="window.rotateLayer('x', 1)">Right (R)</button>
+        
+        <button onclick="window.rotateLayer('z', 1)">Front (F)</button>
+        <button onclick="window.rotateLayer('z', -1)">Back (B)</button>
+
         <button class="reset" onclick="location.reload()">Reset Cube</button>
-        <div class="hint">حرك الماوس/التاتش للف الكاميرا</div>
+        <div class="hint">اسحب بالماوس/التاتش للف الكاميرا</div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -36,10 +45,9 @@
 
     <script>
         let scene, camera, renderer, controls, rubiksCube;
-        let allSmallCubes = []; // مصفوفة لتخزين المكعبات الصغيرة للوصول إليها لاحقاً
+        let allSmallCubes = [];
 
         function init() {
-            // 1. إعداد المشهد (Scene) والكاميرا
             scene = new THREE.Scene();
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             
@@ -48,62 +56,90 @@
             renderer.setPixelRatio(window.devicePixelRatio);
             document.body.appendChild(renderer.domElement);
 
-            // 2. تفعيل التحكم باللمس واللف (OrbitControls)
+            // تحكم التاتش
             controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true; // حركة ناعمة وسلسة
+            controls.enableDamping = true;
 
-            // 3. إضافة إضاءة واقعية لإظهار الألوان
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-            scene.add(ambientLight);
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(5, 5, 5);
-            scene.add(directionalLight);
+            // إضاءة احترافية
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const light = new THREE.DirectionalLight(0xffffff, 0.8);
+            light.position.set(5, 8, 5);
+            scene.add(light);
 
-            // 4. المواد (الألوان الرسمية لمكعب روبيك: أبيض، أصفر، أحمر، برتقالي، أخضر، أزرق)
+            // ألوان روبيك الرسمية
             const materials = [
-                new THREE.MeshStandardMaterial({ color: 0xff5800 }), // Right (برتقالي)
-                new THREE.MeshStandardMaterial({ color: 0xb71234 }), // Left (أحمر)
-                new THREE.MeshStandardMaterial({ color: 0xffffff }), // Up (أبيض)
-                new THREE.MeshStandardMaterial({ color: 0xffd500 }), // Down (أصفر)
-                new THREE.MeshStandardMaterial({ color: 0x009b48 }), // Front (أخضر)
-                new THREE.MeshStandardMaterial({ color: 0x0046ad })  // Back (أزرق)
+                new THREE.MeshStandardMaterial({ color: 0xff5800 }), // Right (Orange)
+                new THREE.MeshStandardMaterial({ color: 0xb71234 }), // Left (Red)
+                new THREE.MeshStandardMaterial({ color: 0xffffff }), // Up (White)
+                new THREE.MeshStandardMaterial({ color: 0xffd500 }), // Down (Yellow)
+                new THREE.MeshStandardMaterial({ color: 0x009b48 }), // Front (Green)
+                new THREE.MeshStandardMaterial({ color: 0x0046ad })  // Back (Blue)
             ];
 
-            // 5. بناء المكعب 3x3x3 (وهذا هو الجزء اللي نسيته!)
             rubiksCube = new THREE.Group();
             scene.add(rubiksCube);
 
-            // نستخدم ثلاث حلقات تكرار (Loops) لترتيب 27 مكعباً صغيراً
+            // بناء 3x3x3 (27 قطعة)
             for (let x = -1; x <= 1; x++) {
                 for (let y = -1; y <= 1; y++) {
                     for (let z = -1; z <= 1; z++) {
-                        // إنشاء هندسة المكعب والمادة (الألوان)
                         const geometry = new THREE.BoxGeometry(0.95, 0.95, 0.95);
                         const cube = new THREE.Mesh(geometry, materials);
-                        
-                        // تحديد موقع كل مكعب صغير بدقة
                         cube.position.set(x, y, z);
                         
-                        // إضافة حواف سوداء لإظهار التقسيم بين المكعبات (وهذا يعطي شكل "اللاعب" الحقيقي)
+                        // إضافة الخطوط السوداء الفاصلة
                         const edges = new THREE.EdgesGeometry(geometry);
-                        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000 }));
-                        cube.add(line);
+                        cube.add(new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000 })));
 
-                        // إضافة المكعب الصغير للمجموعة الرئيسية والمصفوفة
                         rubiksCube.add(cube);
                         allSmallCubes.push(cube);
                     }
                 }
             }
 
-            // 6. وضع الكاميرا في زاوية رؤية جيدة
-            camera.position.set(4, 4, 6);
+            camera.position.set(4, 4, 7);
             controls.update();
-
             animate();
         }
 
-        // --- وظيفة تدوير الطبقات (Global لكي يراها الـ HTML) ---
+        // دالة تدوير الطبقات الاحترافية
+        window.rotateLayer = function(axis, index) {
+            const tempGroup = new THREE.Group();
+            scene.add(tempGroup);
+
+            const worldPos = new THREE.Vector3();
+            const toRotate = allSmallCubes.filter(c => {
+                c.getWorldPosition(worldPos);
+                // تصفية المكعبات بناءً على الطبقة المحددة (1 أو -1)
+                return Math.round(worldPos[axis]) === index;
+            });
+
+            toRotate.forEach(c => tempGroup.attach(c));
+            
+            // تدوير 90 درجة
+            tempGroup.rotation[axis] += Math.PI / 2;
+            tempGroup.updateMatrixWorld();
+
+            toRotate.forEach(c => rubiksCube.attach(c));
+            scene.remove(tempGroup);
+        };
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        init();
+    </script>
+</body>
+</html>
         // هذه الوظيفة تبحث عن المكعبات التي تقع في طبقة معينة وتدورها وحدها
         window.rotateLayer = function(axis, index) {
             const tempGroup = new THREE.Group();
