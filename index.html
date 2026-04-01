@@ -3,40 +3,141 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rubik's Cube Pro | Vercel</title>
+    <title>Rubik's Cube Pro - الإصدار الكامل والدمج</title>
     <style>
         body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: 'Segoe UI', sans-serif; }
         #ui {
-            position: absolute; top: 20px; right: 20px; z-index: 10;
-            display: flex; flex-direction: column; gap: 10px;
-            background: rgba(0,0,0,0.6); padding: 15px; border-radius: 15px;
-            backdrop-filter: blur(10px); border: 1px solid #333;
+            position: absolute; top: 15px; right: 15px; z-index: 100;
+            display: flex; flex-direction: column; gap: 8px;
+            background: rgba(0,0,0,0.7); padding: 15px; border-radius: 12px;
+            backdrop-filter: blur(8px); border: 1px solid #333;
         }
         button {
-            padding: 10px 20px; border: none; border-radius: 8px;
+            padding: 10px 20px; border: none; border-radius: 6px;
             background: #222; color: #00ffcc; cursor: pointer;
-            font-weight: bold; transition: 0.3s; border: 1px solid #444;
+            font-weight: bold; transition: 0.2s; border: 1px solid #444;
+            text-transform: uppercase;
         }
-        button:hover { background: #00ffcc; color: #000; box-shadow: 0 0 15px #00ffcc; }
-        .reset { color: #ff4444; border-color: #500; }
+        button:hover { background: #00ffcc; color: #000; box-shadow: 0 0 10px #00ffcc; }
+        .reset { color: #ff4444; border-color: #500; margin-top: 5px; }
+        .hint { color: #888; font-size: 11px; text-align: center; margin-top: 5px; }
     </style>
 </head>
 <body>
+
     <div id="ui">
         <button onclick="window.rotateLayer('y', 1)">Upper (U)</button>
         <button onclick="window.rotateLayer('x', -1)">Left (L)</button>
         <button onclick="window.rotateLayer('z', 1)">Front (F)</button>
         <button class="reset" onclick="location.reload()">Reset</button>
+        <div class="hint">حرك المكعب بالتاتش/الماوس</div>
     </div>
 
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <script>
+        let scene, camera, renderer, controls, rubiksCube;
+        let cubes = [];
+
+        function init() {
+            // 1. إعداد المشهد
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.body.appendChild(renderer.domElement);
+
+            // 2. تفعيل التاتش واللف (OrbitControls)
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; // حركة ناعمة
+
+            // 3. إضافة إضاءة واقعية
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+
+            // 4. المواد (الألوان الرسمية لمكعب روبيك)
+            const materials = [
+                new THREE.MeshStandardMaterial({ color: 0xff5800 }), // Right (برتقالي)
+                new THREE.MeshStandardMaterial({ color: 0xb71234 }), // Left (أحمر)
+                new THREE.MeshStandardMaterial({ color: 0xffffff }), // Up (أبيض)
+                new THREE.MeshStandardMaterial({ color: 0xffd500 }), // Down (أصفر)
+                new THREE.MeshStandardMaterial({ color: 0x009b48 }), // Front (أخضر)
+                new THREE.MeshStandardMaterial({ color: 0x0046ad })  // Back (أزرق)
+            ];
+
+            // 5. بناء المكعب 3x3x3
+            rubiksCube = new THREE.Group();
+            scene.add(rubiksCube);
+
+            for (let x = -1; x <= 1; x++) {
+                for (let y = -1; y <= 1; y++) {
+                    for (let z = -1; z <= 1; z++) {
+                        const geometry = new THREE.BoxGeometry(0.95, 0.95, 0.95);
+                        const cube = new THREE.Mesh(geometry, materials);
+                        cube.position.set(x, y, z);
+                        
+                        // إضافة حواف سوداء لإظهار التقسيم
+                        const edges = new THREE.EdgesGeometry(geometry);
+                        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000 }));
+                        cube.add(line);
+
+                        rubiksCube.add(cube);
+                        cubes.push(cube);
+                    }
+                }
             }
+
+            // 6. وضع الكاميرا في زاوية رؤية جيدة
+            camera.position.set(4, 4, 6);
+            controls.update();
+
+            animate();
         }
+
+        // --- وظيفة تدوير الطبقات (Global لكي يراها الـ HTML) ---
+        window.rotateLayer = function(axis, index) {
+            const tempGroup = new THREE.Group();
+            scene.add(tempGroup);
+
+            const worldPos = new THREE.Vector3();
+            const toRotate = cubes.filter(c => {
+                c.getWorldPosition(worldPos);
+                // استخدام التقريب لتفادي مشاكل الحسابات العشرية في Three.js
+                return Math.round(worldPos[axis]) === index;
+            });
+
+            toRotate.forEach(c => tempGroup.attach(c));
+            
+            // تدوير 90 درجة
+            tempGroup.rotation[axis] += Math.PI / 2;
+            tempGroup.updateMatrixWorld();
+
+            // إعادتهم للمجموعة الأصلية بعد التدوير
+            toRotate.forEach(c => rubiksCube.attach(c));
+            scene.remove(tempGroup);
+        };
+
+        // --- حلقة التحريك ---
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); // ضروري لعمل الـ Damping (النعومة)
+            renderer.render(scene, camera);
+        }
+
+        // تحديث الحجم عند تكبير أو تصغير المتصفح
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        init();
     </script>
-    <script type="module" src="main.js"></script>
 </body>
 </html>
