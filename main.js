@@ -6,25 +6,33 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 document.body.appendChild(renderer.domElement);
 
-// --- إضافة التحكم باللمس والماوس (OrbitControls) ---
+// --- التحكم باللمس والماوس ---
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; // جعل الحركة ناعمة
+controls.enableDamping = true;
 
-// --- تعريف الألوان الرسمية (روبيك) ---
+// --- إضاءة خفيفة ليعطي شكل واقعي ---
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+const pointLight = new THREE.PointLight(0xffffff, 1);
+pointLight.position.set(5, 5, 5);
+scene.add(pointLight);
+
+// --- مواد المكعب (الألوان الرسمية) ---
 const materials = [
-    new THREE.MeshBasicMaterial({ color: 0xff5800 }), // Right (برتقالي)
-    new THREE.MeshBasicMaterial({ color: 0xb71234 }), // Left (أحمر)
-    new THREE.MeshBasicMaterial({ color: 0xffffff }), // Up (أبيض)
-    new THREE.MeshBasicMaterial({ color: 0xffd500 }), // Down (أصفر)
-    new THREE.MeshBasicMaterial({ color: 0x009b48 }), // Front (أخضر)
-    new THREE.MeshBasicMaterial({ color: 0x0046ad })  // Back (أزرق)
+    new THREE.MeshStandardMaterial({ color: 0xff5800 }), // Right
+    new THREE.MeshStandardMaterial({ color: 0xb71234 }), // Left
+    new THREE.MeshStandardMaterial({ color: 0xffffff }), // Up
+    new THREE.MeshStandardMaterial({ color: 0xffd500 }), // Down
+    new THREE.MeshStandardMaterial({ color: 0x009b48 }), // Front
+    new THREE.MeshStandardMaterial({ color: 0x0046ad })  // Back
 ];
 
 const rubiksCube = new THREE.Group();
 scene.add(rubiksCube);
-const allSmallCubes = [];
+const cubes = [];
 
 // إنشاء المكعبات الصغيرة
 for (let x = -1; x <= 1; x++) {
@@ -33,28 +41,27 @@ for (let x = -1; x <= 1; x++) {
             const geometry = new THREE.BoxGeometry(0.95, 0.95, 0.95);
             const cube = new THREE.Mesh(geometry, materials);
             cube.position.set(x, y, z);
-
-            // إضافة حواف سوداء لإظهار التقسيم
+            
+            // حواف سوداء فخمة
             const edges = new THREE.EdgesGeometry(geometry);
             const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000 }));
             cube.add(line);
 
             rubiksCube.add(cube);
-            allSmallCubes.push(cube);
+            cubes.push(cube);
         }
     }
 }
 
 camera.position.set(4, 4, 6);
-controls.update();
 
-// --- وظيفة تدوير طبقة محددة ---
-function rotateLayer(axis, index) {
+// --- وظيفة تدوير الطبقات (Global لكي يراها الـ HTML) ---
+window.rotateLayer = (axis, index) => {
     const tempGroup = new THREE.Group();
     scene.add(tempGroup);
 
     const worldPos = new THREE.Vector3();
-    const toRotate = allSmallCubes.filter(c => {
+    const toRotate = cubes.filter(c => {
         c.getWorldPosition(worldPos);
         return Math.round(worldPos[axis]) === index;
     });
@@ -64,17 +71,12 @@ function rotateLayer(axis, index) {
     tempGroup.updateMatrixWorld();
     toRotate.forEach(c => rubiksCube.attach(c));
     scene.remove(tempGroup);
-}
-
-// --- ربط الأزرار ---
-document.getElementById('btnU').onclick = () => rotateLayer('y', 1);
-document.getElementById('btnL').onclick = () => rotateLayer('x', -1);
-document.getElementById('btnReset').onclick = () => location.reload();
+};
 
 // --- حلقة التحريك ---
 function animate() {
     requestAnimationFrame(animate);
-    controls.update(); // ضروري لعمل الـ Damping (النعومة)
+    controls.update();
     renderer.render(scene, camera);
 }
 
@@ -85,25 +87,6 @@ window.addEventListener('resize', () => {
 });
 
 animate();
-    // 5. إعادة المكعبات إلى المجموعة الرئيسية
-    cubesToRotate.forEach(cube => {
-        rubiksCube.attach(cube);
-    });
-
-    // 6. حذف المجموعة المؤقتة
-    scene.remove(tempGroup);
-}
-
-
-// --- التحكم بالأزرار المحدثة ---
-
-// تدوير الكاميرا (العرض)
-document.getElementById('btnX').addEventListener('click', () => {
-    rubiksCube.rotation.x += Math.PI / 4;
-});
-document.getElementById('btnY').addEventListener('click', () => {
-    rubiksCube.rotation.y += Math.PI / 4;
-});
 
 // تدوير الطبقات (الميزة الجديدة)
 document.getElementById('btnU').addEventListener('click', () => {
